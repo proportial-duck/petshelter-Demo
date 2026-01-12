@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Donate - Paws Shelter</title>
+    <link rel="stylesheet" href="css/petshelder.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <nav>
+                <div class="logo">🐾 Paws Shelter</div>
+                <div class="nav-links" id="nav-links"></div>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="auth-container">
+            <h2 style="text-align:center;">Support Our Cause 💖</h2>
+            <form id="donateForm">
+                <div class="form-group">
+                    <label>Your Name</label>
+                    <input type="text" id="name" required placeholder="Enter your name">
+                </div>
+                <div class="form-group">
+                    <label>Amount ($)</label>
+                    <input type="number" id="amount" min="1" step="0.01" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%">Donate Now</button>
+            </form>
+        </div>
+    </div>
+    <script src="js/pet.js?v=supabase_v10"></script>
+    <script>
+        checkSession().then(res => { if (!res.loggedIn) window.location.href = 'login.html'; });
+
+        let donationData = {};
+        let savedMethods = [];
+
+        document.getElementById('donateForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            donationData = {
+                name: document.getElementById('name').value,
+                amount: document.getElementById('amount').value
+            };
+            openPaymentModal();
+        });
+
+        async function openPaymentModal() {
+            // Load saved methods
+            const res = await apiCall('misc.php?type=payment_methods');
+            savedMethods = Array.isArray(res) ? res : [];
+            renderPaymentOptions();
+            document.getElementById('payment-modal').classList.add('active');
+        }
+
+        function renderPaymentOptions() {
+            const container = document.getElementById('payment-methods-grid');
+            let html = '';
+
+            // Render Saved Methods
+            if (savedMethods.length > 0) {
+                html += `<div style="grid-column: 1 / -1; text-align:left; font-weight:bold; margin-bottom:5px;">Saved Methods</div>`;
+                savedMethods.forEach(m => {
+                    let icon = '💳';
+                    if (m.provider === 'PayPal') icon = '🅿️';
+                    if (m.provider.includes('Pay') && !m.provider.includes('Pal')) icon = '📱';
+                    
+                    html += `
+                    <div class="p-opt saved-method" style="flex-direction:row; justify-content:space-between;">
+                        <div onclick="selectSavedMethod(${m.id})" style="display:flex; align-items:center; gap:10px; flex-grow:1;">
+                            <span>${icon}</span>
+                            <div style="text-align:left;">
+                                <div style="font-weight:bold;">${m.provider}</div>
+                                <div style="font-size:0.8rem; color:#666;">${m.display_info}</div>
+                            </div>
+                        </div>
+                        <button onclick="deleteMethod(${m.id})" style="background:none; border:none; cursor:pointer; font-size:1.2rem; color:#dc3545;">🗑️</button>
+                    </div>`;
+                });
+                html += `<div style="grid-column: 1 / -1; text-align:left; font-weight:bold; margin:15px 0 5px;">Add New Method</div>`;
+            }
+
+            // Standard Options
+            html += `
+                <div class="p-opt" onclick="selectPayment('PayPal')"><span>🅿️</span> PayPal</div>
+                <div class="p-opt" onclick="selectPayment('Visa')"><span>💳</span> Visa</div>
+                <div class="p-opt" onclick="selectPayment('MasterCard')"><span>💳</span> MasterCard</div>
+                <div class="p-opt" onclick="selectPayment('Google Pay')"><span>🇬</span> Google Pay</div>
+                <div class="p-opt" onclick="selectPayment('Apple Pay')"><span>🍎</span> Apple Pay</div>
+            `;
+            
+            container.innerHTML = html;
+        }
+
+        function closePaymentModals() {
+            document.querySelectorAll('.payment-modal').forEach(m => m.classList.remove('active'));
+            // Reset checkboxes
+            document.querySelectorAll('.save-check').forEach(c => c.checked = false);
+        }
+
+        function selectPayment(method) {
+            closePaymentModals();
+            donationData.payment_method = method;
+            donationData.is_saved = false;
+
+            if (method === 'PayPal') {
+                document.getElementById('paypal-modal').classList.add('active');
+            } else if (method === 'Visa' || method === 'MasterCard') {
+                document.getElementById('card-title').innerText = 'Pay with ' + method;
+                document.getElementById('card-modal').classList.add('active');
+            } else if (method === 'Google Pay' || method === 'Apple Pay') {
+                const icon = method === 'Google Pay' ? '🇬' : '🍎';
+                document.getElementById('wallet-title').innerText = method;
+                document.getElementById('wallet-icon').innerText = icon;
+                document.getElementById('wallet-modal').classList.add('active');
+            }
+        }
+        
+        function selectSavedMethod(id) {
+            const method = savedMethods.find(m => m.id == id);
+            if (!method) return;
+            
+            closePaymentModals();
+            donationData.payment_method = method.provider; // Or designate as 'Saved - Visa'
+            donationData.is_saved = true;
+            
+            // Skip direct entry, go straight to processing
+            // Maybe show a quick confirmation? simulating "using saved card"
+            showUseSavedModal(method);
+        }
+        
+        function showUseSavedModal(method) {
+             document.getElementById('saved-confirm-content').innerHTML = `
+                <h3>Confirm Payment</h3>
+                <p>Use saved <b>${method.provider}</b> ending in ${method.display_info.slice(-4)}?</p>
+                <p>Amount: <b>$${donationData.amount}</b></p>
+                <button onclick="processPayment(false)" class="btn btn-primary" style="width:100%;">Confirm Pay</button>
+             `;
+             document.getElementById('saved-confirm-modal').classList.add('active');
+        }
+
+        function deleteMethod(id) {
+            showConfirmModal("Delete Method?", "Are you sure you want to delete this payment method?", async () => {
+                await apiCall('misc.php?type=payment_methods&id=' + id, 'DELETE');
+                openPaymentModal(); // Refresh
+            }, "Delete", "Cancel");
+        }
+
+        function askToSaveMethod() {
+            // Simple validation before asking
+            let valid = false;
+            if (donationData.payment_method === 'PayPal') {
+                valid = document.querySelector('#paypal-modal input[type="email"]').value !== '';
+            } else if (donationData.payment_method.includes('Pay')) {
+                valid = document.querySelector('#wallet-phone').value !== '';
+            } else {
+                valid = document.querySelector('#card-modal input[maxlength="19"]').value.length > 12;
+            }
+
+            if (!valid) {
+                showWarmModal("Missing Details", "Please fill in the payment details.", "⚠️");
+                return;
+            }
+
+            // Hide the input modal, show the save question
+            document.querySelectorAll('.payment-modal').forEach(m => m.classList.remove('active'));
+            document.getElementById('save-method-modal').classList.add('active');
+        }
+
+        function confirmSave(save) {
+            document.getElementById('save-method-modal').classList.remove('active');
+            processPayment(save);
+        }
+
+        async function processPayment(save = false) {
+            // Check inputs if manually entering
+            let displayInfo = '';
+            
+            if (!donationData.is_saved) {
+                // Gather display info for saving
+                if (donationData.payment_method === 'PayPal') {
+                    displayInfo = document.querySelector('#paypal-modal input[type="email"]').value || 'user@paypal.com';
+                } else if (donationData.payment_method.includes('Pay')) {
+                    displayInfo = 'Wallet Account';
+                } else {
+                    const num = document.querySelector('#card-modal input[maxlength="19"]').value;
+                    displayInfo = '**** ' + (num.slice(-4) || '0000');
+                }
+            }
+
+            const btn = document.activeElement;
+            const originalText = btn.innerText;
+            btn.innerText = 'Processing...';
+            btn.disabled = true;
+
+            await new Promise(r => setTimeout(r, 1500)); 
+
+            // Save Method if requested
+            if (save && !donationData.is_saved) {
+                await apiCall('misc.php?type=payment_methods', 'POST', {
+                    type: 'card', // simplified
+                    provider: donationData.payment_method,
+                    display_info: displayInfo
+                });
+            }
+
+            const res = await apiCall('misc.php?type=donation', 'POST', donationData);
+            
+            closePaymentModals();
+            if (btn) {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+
+            if (res.success) {
+                showWarmModal('Thank You!', 'Your donation brings warmth to our hearts and food to our bowls! 💖', '💖');
+                document.getElementById('donateForm').reset();
+            } else {
+                showWarmModal('Error', 'Payment failed. Please try again.', '❌');
+            }
+        }
+    </script>
+
+    <!-- Payment Selection Modal (Expanded) -->
+    <div id="payment-modal" class="modal-overlay payment-modal">
+        <div class="modal-content" style="max-width:600px; width:90%; text-align:center;">
+            <h3>Select Payment Method</h3>
+            <div id="payment-methods-grid" class="payment-options">
+                <!-- Javascript will populate -->
+            </div>
+            <button onclick="closePaymentModals()" class="btn btn-secondary" style="margin-top:15px; background:#ccc; color:#333;">Cancel</button>
+        </div>
+    </div>
+
+    <!-- PayPal Modal -->
+    <div id="paypal-modal" class="modal-overlay payment-modal">
+        <div class="modal-content" style="max-width:500px; width:90%;">
+            <div style="text-align:center; color:#003087; font-size:3rem; margin-bottom:10px;">🅿️</div>
+            <h3 style="text-align:center;">Log in to PayPal</h3>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" placeholder="email@example.com" class="mock-input">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" placeholder="••••••••" class="mock-input">
+            </div>
+            <br>
+            <button onclick="askToSaveMethod()" class="btn btn-primary" style="width:100%; background:#003087;">Opay</button>
+        </div>
+    </div>
+
+    <!-- Card Modal -->
+    <div id="card-modal" class="modal-overlay payment-modal">
+        <div class="modal-content" style="max-width:500px; width:90%;">
+            <h3 id="card-title" style="text-align:center;">Pay with Card</h3>
+            <div class="form-group">
+                <label>Card Number</label>
+                <input type="text" placeholder="0000 0000 0000 0000" maxlength="19" class="mock-input">
+            </div>
+            <div style="display:flex; gap:10px;">
+                <div class="form-group">
+                    <label>Expiry</label>
+                    <input type="text" placeholder="MM/YY" maxlength="5" class="mock-input">
+                </div>
+                <div class="form-group">
+                    <label>CVV</label>
+                    <input type="password" placeholder="123" maxlength="3" class="mock-input">
+                </div>
+            </div>
+            <br>
+            <button onclick="askToSaveMethod()" class="btn btn-primary" style="width:100%;">Pay Now</button>
+        </div>
+    </div>
+
+    <!-- Wallet Modal -->
+    <div id="wallet-modal" class="modal-overlay payment-modal">
+        <div class="modal-content" style="max-width:500px; width:90%; text-align:center;">
+            <div id="wallet-icon" style="font-size:3rem; margin-bottom:10px;"></div>
+            <h3 id="wallet-title">Pay</h3>
+            <p>Enter your linked wallet details to proceed.</p>
+            
+            <div class="form-group" style="text-align:left;">
+                <label>Linked Account Number</label>
+                <input type="text" id="wallet-number" placeholder="xxxx-xxxx-xxxx-xxxx" class="mock-input">
+            </div>
+            <div class="form-group" style="text-align:left;">
+                <label>Phone Number / ID</label>
+                <input type="text" id="wallet-phone" placeholder="+1 234 567 890" class="mock-input">
+            </div>
+            
+            <br>
+            <button onclick="askToSaveMethod()" class="btn btn-primary" style="width:100%;">Confirm Payment</button>
+        </div>
+    </div>
+    
+    <!-- Saved Method Usage Confirmation -->
+    <div id="saved-confirm-modal" class="modal-overlay payment-modal">
+        <div class="modal-content" id="saved-confirm-content" style="max-width:400px; text-align:center;">
+             <!-- Content Injected via JS -->
+        </div>
+    </div>
+
+    <!-- Save Payment Method Confirmation Modal -->
+    <div id="save-method-modal" class="modal-overlay payment-modal">
+        <div class="modal-content" style="max-width:400px; text-align:center;">
+            <h3>Save Payment Method?</h3>
+            <p>Would you like to save this payment method for faster donations in the future?</p>
+            <div style="display:flex; gap:10px; justify-content:center; margin-top:20px;">
+                <button onclick="confirmSave(true)" class="btn btn-primary" style="flex:1;">Yes, Save it</button>
+                <button onclick="confirmSave(false)" class="btn btn-secondary" style="background:#ccc; color:#333; flex:1;">No, Thanks</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .payment-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+        .p-opt { border: 1px solid #ddd; padding: 15px; border-radius: 8px; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+        .p-opt:hover { background: #f0f8ff; border-color: var(--primary-color); transform: translateY(-2px); }
+        .p-opt span { font-size: 1.5rem; }
+        .saved-method:hover { background: #e8f5e9; border-color: #28a745; }
+        .mock-input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-top: 5px; box-sizing: border-box; }
+        .modal-overlay.active { display: flex !important; }
+    </style>
+</body>
+</html>

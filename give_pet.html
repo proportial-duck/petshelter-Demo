@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Give a Pet - Paws Shelter</title>
+    <link rel="stylesheet" href="css/petshelder.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <nav>
+                <div class="logo">🐾 Paws Shelter</div>
+                <div class="nav-links" id="nav-links"></div>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <h2>Give a Pet for Adoption</h2>
+        <p>We'll help find a loving new home for your pet.</p>
+        <div class="auth-container" style="max-width: 800px;">
+            <form id="givePetForm">
+                <div class="form-group">
+                    <label>Pet Name</label>
+                    <input type="text" name="name" required placeholder="Pet's Name">
+                </div>
+                <div class="form-group">
+                    <label>Type (e.g. Dog, Cat)</label>
+                    <input type="text" name="type" required placeholder="Animal Type">
+                </div>
+                
+                <div class="form-group">
+                    <label>Upload Photo</label>
+                    <input type="file" name="image" required accept="image/*">
+                </div>
+
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea name="description" rows="3" required placeholder="Tell us about your pet's personality..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>History</label>
+                    <textarea name="history" rows="2" required placeholder="Why are you giving them up? Previous owners?"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Food Habits</label>
+                    <input type="text" name="food_habit" required placeholder="What do they eat?">
+                </div>
+
+                <div class="form-group">
+                    <label>Health Status</label>
+                    <select name="health_status">
+                        <option value="green">Healthy (Green)</option>
+                        <option value="yellow">Minor Issues (Yellow)</option>
+                        <option value="red">Critical/Chronic (Red)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Vaccination Status</label>
+                    <select name="vaccine_status">
+                        <option value="Not Vaccinated">Not Vaccinated</option>
+                        <option value="Partially Vaccinated">Partially Vaccinated</option>
+                        <option value="Fully Vaccinated" selected>Fully Vaccinated</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Submit Profile</button>
+            </form>
+        </div>
+    </div>
+    
+    <script src="js/pet.js?v=supabase_v10"></script>
+    <script>
+        checkSession().then(res => { if (!res.loggedIn) window.location.href = 'login.html'; });
+
+        document.getElementById('givePetForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            // API expects 'pets.php' POST for adding new pet
+            // Note: pets.php requires 'history', 'food_habit', etc. which we included.
+            
+            const res = await apiCall('pets.php', 'POST', formData);
+            
+            if (res.success) {
+                showWarmModal(
+                    'Thank You! 💖', 
+                    'Your pet profile has been created. We will do our best to find them a great home.', 
+                    '🏡',
+                    () => { window.location.href = 'index.html'; }
+                );
+            } else {
+                showWarmModal('Error', 'Something went wrong: ' + (res.error || 'Unknown'), '❌');
+            }
+        });
+    </script>
+</body>
+</html>

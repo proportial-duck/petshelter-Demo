@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>About Us - Paws Shelter</title>
+    <link rel="stylesheet" href="css/petshelder.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <nav>
+                <div class="logo">🐾 Paws Shelter</div>
+                <div class="nav-links" id="nav-links">
+                    <!-- Populated by JS -->
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container fade-in">
+        <div class="about-hero">
+            <h1>About Our Shelter</h1>
+            <p>Dedicated to rescuing, rehabilitating, and rehoming animals in need.</p>
+        </div>
+        
+        <div class="about-container">
+            <div id="about-content" class="about-content">
+                <p>Loading shelter information...</p>
+            </div>
+
+            <!-- Founder Section -->
+            <div class="founder-section" style="text-align: center; margin-bottom: 40px; padding: 30px; background: #fdfdfd; border-radius: 15px; border: 1px solid #eee;">
+                <h3 style="color: var(--primary-color); margin-bottom: 20px;">Meet Our Founder</h3>
+                <h4 id="founder-name" style="font-size: 1.4rem; color: var(--text-color);">K.M. Fathum Mubin Sachcha</h4>
+                <p style="color: #666; font-size: 0.9rem;">Founder & CEO</p>
+            </div>
+
+            <!-- Volunteers Section -->
+            <div class="volunteers-section" style="text-align: center; margin-bottom: 40px;">
+                <h3 style="color: var(--primary-color); margin-bottom: 20px;">Meet Our Volunteers</h3>
+                <div id="volunteer-list" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 15px;">
+                    <p>Loading volunteers...</p>
+                </div>
+            </div>
+            
+            <div class="contact-section">
+                <h3>Get in Touch</h3>
+                <div class="contact-grid">
+                    <div class="contact-item">
+                        <div class="contact-icon">📍</div>
+                        <div>
+                            <strong>Location</strong>
+                            <p id="contact-location">Ashulia, Savar, Dhaka</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <div class="contact-icon">📧</div>
+                        <div>
+                            <strong>Email</strong>
+                            <p id="contact-email">petshelter@gmail.com</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <div class="contact-icon">📞</div>
+                        <div>
+                            <strong>Phone</strong>
+                            <p id="contact-phone">+088 0130 2910017</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/pet.js?v=supabase_v10"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Load Settings
+                const data = await apiCall('settings.php');
+                
+                if (data && data.success !== false) {
+                    if(data.about_text) {
+                        document.getElementById('about-content').innerHTML = data.about_text.split('\n').map(p => `<p>${p}</p>`).join('');
+                    } else {
+                        document.getElementById('about-content').innerHTML = '<p>Welcome to our shelter. Information coming soon.</p>';
+                    }
+                    
+                    if(data.shelter_location) document.getElementById('contact-location').textContent = data.shelter_location;
+                    if(data.contact_email) document.getElementById('contact-email').textContent = data.contact_email;
+                    if(data.contact_phone) document.getElementById('contact-phone').textContent = data.contact_phone;
+                    if(data.founder_name) document.getElementById('founder-name').textContent = data.founder_name;
+                }
+
+                // Load Volunteers
+                const volunteers = await apiCall('misc.php?type=public_volunteers');
+                const volList = document.getElementById('volunteer-list');
+                
+                if (volunteers && Array.isArray(volunteers) && volunteers.length > 0) {
+                    volList.innerHTML = volunteers.map(v => `
+                        <div style="background: #fff; padding: 15px 25px; border-radius: 50px; border: 1px solid #eee; box-shadow: 0 2px 5px rgba(0,0,0,0.05); min-width: 150px;">
+                            <span style="font-weight: bold; color: #555;">${v.name}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    volList.innerHTML = '<p style="color:#777;">Only our Founder is currently listed.</p>';
+                }
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('about-content').innerText = 'Welcome to Paws Shelter.';
+                document.getElementById('volunteer-list').innerText = 'No volunteers found.';
+            }
+        });
+    </script>
+</body>
+</html>

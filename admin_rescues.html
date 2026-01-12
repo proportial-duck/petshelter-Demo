@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Rescues - Paws Shelter</title>
+    <link rel="stylesheet" href="css/petshelder.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <nav>
+                <div class="logo">🐾 Paws Admin</div>
+                <div class="nav-links">
+                    <a href="admin_dashboard.html">Dashboard</a>
+                    <a href="#" onclick="logout()">Logout</a>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <h1>Rescue Reports (Pending Approval)</h1>
+        <div class="card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Image</th><th>Name</th><th>Type</th><th>Location</th><th>Condition</th><th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="rescue-table"></tbody>
+            </table>
+        </div>
+    </div>
+    <script src="js/pet.js?v=supabase_v10"></script>
+    <script>
+        checkSession().then(res => { if (!res.loggedIn || (res.user.role !== 'admin' && res.user.role !== 'volunteer')) window.location.href = 'login.html'; });
+
+        async function loadRescues() {
+            const list = await apiCall('misc.php?type=rescue');
+            const tbody = document.getElementById('rescue-table');
+            tbody.innerHTML = '';
+            
+            if (!list || list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No pending rescues.</td></tr>';
+                return;
+            }
+
+            list.forEach(r => {
+                let imgPath = r.image;
+                if (imgPath && !imgPath.startsWith('http') && !imgPath.startsWith('../')) {
+                     imgPath = '../backend/' + imgPath;
+                }
+                
+                tbody.innerHTML += `
+                <tr>
+                    <td><img src="${imgPath || 'assets/default_pet.png'}" style="width:50px; height:50px; object-fit:cover; border-radius:5px;"></td>
+                    <td>${r.name}</td>
+                    <td>${r.type}</td>
+                    <td>${r.location}</td>
+                    <td style="max-width:200px; font-size:0.9rem;">${r.description}</td>
+                    <td>
+                        <button onclick="approveRescue(${r.id})" class="btn btn-primary" style="padding:5px 10px; font-size:0.8rem; margin-right:5px;">Approve ✅</button>
+                        <button onclick="rejectRescue(${r.id})" class="btn" style="background:#dc3545; color:white; padding:5px 10px; font-size:0.8rem;">Reject ❌</button>
+                    </td>
+                </tr>`;
+            });
+        }
+        
+        async function approveRescue(id) {
+            showConfirmModal('Approve Rescue?', "This will create a text 'Available' pet profile.", async () => {
+                const formData = new FormData();
+                formData.append('id', id);
+                
+                const res = await apiCall('misc.php?type=rescue&action=approve', 'POST', formData);
+                if (res.success) {
+                    showWarmModal('Success', 'Rescue approved and moved to active pets! 🐾', '🎉');
+                    loadRescues();
+                } else {
+                    showWarmModal('Error', res.error, '❌');
+                }
+            }, 'Approve', 'Cancel');
+        }
+
+        async function rejectRescue(id) {
+            showConfirmModal('Reject Rescue?', "Delete this rescue report permanently?", async () => {
+                const formData = new FormData();
+                formData.append('id', id);
+                
+                const res = await apiCall('misc.php?type=rescue&action=reject', 'POST', formData);
+                if (res.success) {
+                    loadRescues();
+                } else {
+                    showWarmModal('Error', res.error, '❌');
+                }
+            }, 'Reject', 'Cancel');
+        }
+
+        loadRescues();
+    </script>
+</body>
+</html>

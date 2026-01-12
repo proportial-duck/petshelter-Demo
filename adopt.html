@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Adopt - Paws Shelter</title>
+    <link rel="stylesheet" href="css/petshelder.css">
+    <link rel="stylesheet" href="css/animalshelter.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <nav>
+                <div class="logo">🐾 Paws Shelter</div>
+                <div class="nav-links" id="nav-links"></div>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <h1>Find Your New Best Friend 🐾</h1>
+        <div class="pet-grid" id="pet-container">Loading pets...</div>
+    </div>
+
+    <script src="js/pet.js?v=supabase_v10"></script>
+<!-- Pet Details Modal -->
+    <div id="pet-details-modal" class="modal-overlay">
+        <div class="modal-content pet-details-modal">
+            <button class="close-modal" onclick="closePetModal()">×</button>
+            <div id="pet-modal-body" class="pet-details-grid">
+                <!-- Content will be injected here -->
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        checkSession().then(res => {
+            if(res.loggedIn) window.currentUser = res.user;
+        });
+        window.allPets = []; // Store pets globally
+
+
+
+        function viewDetails(id) {
+            const pet = window.allPets.find(p => p.id == id);
+            if (!pet) return;
+
+            const modal = document.getElementById('pet-details-modal');
+            const body = document.getElementById('pet-modal-body');
+
+            let imgPath = pet.image;
+            if (imgPath && !imgPath.startsWith('http') && !imgPath.startsWith('../')) {
+                    imgPath = '../backend/' + imgPath;
+            }
+
+            body.innerHTML = `
+                <div class="pet-details-image">
+                    <img src="${imgPath}" alt="${pet.name}">
+                </div>
+                <div class="pet-details-content">
+                    <div class="pet-details-header">
+                        <h2 style="font-size:2.5rem; color:var(--primary-color);">${pet.name}</h2>
+                        <span class="status-badge" style="background-color:${getStatusColor(pet.health_status).bg}; color:${getStatusColor(pet.health_status).text}">
+                            ${pet.health_status.toUpperCase()}
+                        </span>
+                    </div>
+
+                    <div class="pet-details-info">
+                        <p><strong>Type:</strong> ${pet.type}</p>
+                        <p><strong>Age:</strong> ${pet.age || 'Unknown'}</p>
+                        <p><strong>Vaccinated:</strong> ${pet.vaccine_status == 1 ? 'Yes ✅' : 'No ❌'}</p>
+                        <p><strong>Description:</strong> <br>${pet.description || 'No description provided.'}</p>
+                    </div>
+
+                    <div id="adopt-action-area">
+                        <!-- Action button injected via JS -->
+                    </div>
+                </div>
+            `;
+            
+            const actionArea = body.querySelector('#adopt-action-area');
+            
+            // Logic:
+            // 1. Admin -> Admin Dashboard
+            // 2. Guest -> Login to Adopt
+            // 3. User -> Adopt Me
+            
+            if (window.currentUser && (window.currentUser.role === 'admin' || window.currentUser.role === 'volunteer')) {
+                actionArea.innerHTML = `
+                    <div style="text-align:center; padding:10px; background:#f8f9fa; border-radius:10px;">
+                        <p style="color:#666; margin-bottom:10px;">(Staff View)</p>
+                        <button onclick="openUpdateModal('${pet.id}')" class="btn btn-secondary" style="width:100%; padding: 12px; font-size: 1rem; background-color: #6c757d; border:none; color:white;">
+                            Update Details 🛠️
+                        </button>
+                    </div>
+                `;
+            } else if (!window.currentUser) {
+                // Not logged in
+                actionArea.innerHTML = `
+                    <button onclick="window.location.href='login.html'" class="btn btn-primary" style="width:100%; padding: 12px; font-size: 1rem; margin-bottom: 10px;">
+                        Login to Adopt 🔒
+                    </button>
+                    <button onclick="askAboutPet('${pet.id}', '${pet.name.replace(/'/g, "\\'")}')" class="btn btn-secondary" style="width:100%; padding: 12px; font-size: 1rem; background: #fff; color: var(--primary-color); border: 2px solid var(--primary-color);">
+                        Get more info 💬
+                    </button>
+                    <p style="text-align:center; font-size:0.8rem; color:#888; margin-top:5px;">You need to be registered.</p>
+                `;
+            } else {
+                // Logged in User
+                actionArea.innerHTML = `
+                    <button onclick="showAdoptForm('${pet.id}')" class="btn btn-primary" style="width:100%; padding: 12px; font-size: 1.1rem; margin-bottom: 10px;">
+                        Adopt Me 🐾
+                    </button>
+                    <button onclick="askAboutPet('${pet.id}', '${pet.name.replace(/'/g, "\\'")}')" class="btn btn-secondary" style="width:100%; padding: 12px; font-size: 1rem; background: #fff; color: var(--primary-color); border: 2px solid var(--primary-color);">
+                        Get more info 💬
+                    </button>
+                `;
+            }
+
+            modal.classList.add('active');
+        }
+
+        function openUpdateModal(id) {
+            const pet = window.allPets.find(p => p.id == id);
+            if (!pet) return;
+
+            const modalHtml = `
+            <div id="update-pet-modal" class="modal-overlay active">
+                <div class="modal-content" style="max-width:400px; text-align:left; padding:25px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                        <h3 class="modal-title" style="margin:0; font-size:1.4rem;">Update ${pet.name} 📝</h3>
+                        <button onclick="document.getElementById('update-pet-modal').remove()" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">×</button>
+                    </div>
+                    
+                    <form id="edit-pet-form" onsubmit="handleUpdateSubmit(event, '${id}')">
+                        <div class="form-group" style="margin-bottom:10px;">
+                            <label style="font-size:0.9rem;">Name</label>
+                            <input type="text" name="name" value="${pet.name}" required style="padding:8px;">
+                        </div>
+                        <div class="form-group" style="margin-bottom:10px;">
+                            <label style="font-size:0.9rem;">Type</label>
+                            <input type="text" name="type" value="${pet.type}" required style="padding:8px;">
+                        </div>
+                        <div style="display:flex; gap:10px; margin-bottom:10px;">
+                            <div class="form-group" style="flex:1;">
+                                <label style="font-size:0.9rem;">Health</label>
+                                <select name="health_status" style="padding:8px;">
+                                    <option value="green" ${pet.health_status === 'green' ? 'selected' : ''}>Healthy 🟢</option>
+                                    <option value="yellow" ${pet.health_status === 'yellow' ? 'selected' : ''}>Needs Help 🟡</option>
+                                    <option value="red" ${pet.health_status === 'red' ? 'selected' : ''}>Critical 🔴</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="flex:1;">
+                                <label style="font-size:0.9rem;">Vaccinated</label>
+                                <select name="vaccine_status" style="padding:8px;">
+                                    <option value="1" ${pet.vaccine_status == 1 ? 'selected' : ''}>Yes ✅</option>
+                                    <option value="0" ${pet.vaccine_status != 1 ? 'selected' : ''}>No ❌</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom:15px;">
+                            <label style="font-size:0.9rem;">Description</label>
+                            <textarea name="description" style="height:80px; padding:8px; font-size:0.9rem;">${pet.description || ''}</textarea>
+                        </div>
+                        <div class="form-group" style="margin-bottom:15px;">
+                            <label style="font-size:0.9rem;">Update Photo (Optional)</label>
+                            <input type="file" name="image" accept="image/*" style="font-size:0.9rem;">
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width:100%; padding:10px;">
+                            Save Changes 💾
+                        </button>
+                    </form>
+                </div>
+            </div>`;
+
+            // Append to body temporarily
+            const container = document.createElement('div');
+            container.innerHTML = modalHtml;
+            document.body.appendChild(container.firstElementChild);
+        }
+
+        async function handleUpdateSubmit(e, id) {
+            e.preventDefault();
+            await updatePetDetails(id); // Calls pet.js function
+            document.getElementById('update-pet-modal').remove();
+            
+            // Refresh main modal details if still open
+            const pet = window.allPets.find(p => p.id == id);
+            // Re-fetch to be safe? loadPets does that. 
+            // For now, allow the success modal to trigger loadPets via callback in pet.js
+            // But we also want to refresh the CURRENT viewDetails modal if it is open.
+            // Let's rely on the user closing and reopening or simple reload for now, 
+            // actually pet.js loadPets() will update the grid, but not the open modal.
+            // Optimistic update:
+            const form = e.target;
+            pet.name = form.name.value;
+            pet.type = form.type.value;
+            pet.health_status = form.health_status.value;
+            pet.vaccine_status = form.vaccine_status.value;
+            pet.description = form.description.value;
+            
+            // Re-render
+            viewDetails(id);
+        }
+
+        let currentWizardStep = 1;
+        
+        async function showAdoptForm(id) {
+            const pet = window.allPets.find(p => p.id == id);
+            const userRes = await checkSession();
+            const userName = userRes.loggedIn ? userRes.user.name : "Guest";
+            currentWizardStep = 1;
+
+            const actionArea = document.getElementById('adopt-action-area');
+            actionArea.innerHTML = `
+                <div class="adopt-form-container" style="overflow:hidden;">
+                    <div class="wizard-progress">
+                        <div class="progress-dot active" id="dot-1"></div>
+                        <div class="progress-dot" id="dot-2"></div>
+                        <div class="progress-dot" id="dot-3"></div>
+                    </div>
+
+                    <div class="wizard-container">
+                        <!-- Step 1: Intro -->
+                        <div class="wizard-step active" id="step-1">
+                            <h3>Start Adoption 🐾</h3>
+                            <p>You are applying for <strong>${pet.name}</strong>.</p>
+                            
+                            <div class="form-group">
+                                <label>Applicant Name</label>
+                                <input type="text" value="${userName}" disabled style="background:#eee; cursor:not-allowed;">
+                            </div>
+                            <p style="font-size:0.8rem; margin-top:20px;">Let's get to know you better in the next steps.</p>
+
+                            <div class="wizard-nav">
+                                <button onclick="viewDetails('${id}')" class="btn" style="flex:1; background:#eee; color:#333;">Cancel</button>
+                                <button onclick="nextStep(2)" class="btn btn-primary" style="flex:1;">Next ➝</button>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Details -->
+                        <div class="wizard-step" id="step-2">
+                            <h3>About You 🏠</h3>
+                            
+                            <div class="form-group">
+                                <label>Pet Experience</label>
+                                <textarea id="adopt-experience" placeholder="History with pets..."></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Other Pets?</label>
+                                <input type="text" id="adopt-other-pets" placeholder="e.g. 1 Dog...">
+                            </div>
+
+                            <div class="wizard-nav">
+                                <button onclick="nextStep(1)" class="btn" style="flex:1; background:#eee; color:#333;">← Back</button>
+                                <button onclick="nextStep(3)" class="btn btn-primary" style="flex:1;">Next ➝</button>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Final -->
+                        <div class="wizard-step" id="step-3">
+                            <h3>Final Check 💰</h3>
+                            
+                            <div class="form-group">
+                                <label>Financial Status</label>
+                                <input type="text" id="adopt-financial" placeholder="Budget for care...">
+                            </div>
+
+                            <div style="background:#f9f9f9; padding:10px; border-radius:10px; margin-bottom:15px; font-size:0.85rem; color:#666;">
+                                <p style="margin:0;">By submitting, you agree to care for <strong>${pet.name}</strong> responsibly.</p>
+                            </div>
+
+                            <div class="wizard-nav">
+                                <button onclick="nextStep(2)" class="btn" style="flex:1; background:#eee; color:#333;">← Back</button>
+                                <button onclick="submitAdoption('${id}')" class="btn btn-primary" style="flex:1;">Submit 🐾</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function nextStep(step) {
+            const current = document.getElementById(`step-${currentWizardStep}`);
+            const next = document.getElementById(`step-${step}`);
+            
+            // Validate if going forward
+            if (step > currentWizardStep) {
+                if(currentWizardStep === 2) {
+                    const exp = document.getElementById('adopt-experience').value;
+                    const other = document.getElementById('adopt-other-pets').value;
+                    if(!exp || !other) {
+                        showWarmModal('Missing Info', 'Please fill out all fields.', '⚠️');
+                        return;
+                    }
+                }
+            }
+
+            // Update Classes for Animation
+            if (step > currentWizardStep) {
+                current.classList.add('prev');
+                current.classList.remove('active');
+                next.classList.add('active');
+                next.classList.remove('prev');
+            } else {
+                current.classList.remove('active');
+                next.classList.remove('prev');
+                next.classList.add('active');
+            }
+
+            // Update Dots
+            document.querySelectorAll('.progress-dot').forEach((d, i) => {
+                d.classList.toggle('active', i + 1 === step);
+            });
+
+            currentWizardStep = step;
+        }
+
+        async function submitAdoption(id) {
+            // Check session
+            const session = await checkSession();
+            if (!session.loggedIn) {
+                showWarmModal('Login Required', 'You need to be logged in to adopt a pet.', '🔒');
+                return;
+            }
+
+            const experience = document.getElementById('adopt-experience').value;
+            const otherPets = document.getElementById('adopt-other-pets').value;
+            const financial = document.getElementById('adopt-financial').value;
+
+            if (!experience || !otherPets || !financial) {
+                showWarmModal('Missing Information', 'Please fill out all fields in the application.', '⚠️');
+                return;
+            }
+
+            const res = await apiCall('adoptions.php?action=submit', 'POST', {
+                pet_id: id,
+                experience: experience,
+                other_pets: otherPets,
+                financial_status: financial
+            });
+
+            if (res.success) {
+                closePetModal();
+                showWarmModal('Application Received!', 'Your adoption request has been submitted successfully. We will review it and contact you soon.', '🎉');
+            } else {
+                showWarmModal('Error', "Something went wrong: " + res.error, '❌');
+            }
+        }
+
+        function closePetModal() {
+            document.getElementById('pet-details-modal').classList.remove('active');
+        }
+
+
+
+        loadPets();
+    </script>
+</body>
+</html>

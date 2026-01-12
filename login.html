@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - Paws Shelter</title>
+    <link rel="stylesheet" href="css/petshelder.css">
+    <link rel="stylesheet" href="css/neon_creds.css">
+</head>
+<body>
+    <div class="container">
+        <div class="auth-container">
+            <div class="login-tabs">
+                <button class="tab-btn active" onclick="switchTab('user')">User Access</button>
+                <button class="tab-btn" onclick="switchTab('admin')">Admin Access</button>
+            </div>
+            
+            <h2 id="login-title">Welcome Back! 🐾</h2>
+            <div id="error-msg" style="color:red; margin-bottom:10px;"></div>
+            
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" id="email" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="password" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%">Login</button>
+            </form>
+            <div class="switch-link" id="register-link">New to Paws? <a href="register.html">Create an account</a></div>
+            <div class="switch-link"><a href="index.html">Back to Home</a></div>
+            
+            <div class="neon-btn-container">
+                <button onclick="showCredsModal()" class="demo-creds-btn">
+                    View Demo Credentials 🔑
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Demo Credentials Modal -->
+    <div id="creds-modal" class="modal-overlay">
+        <div class="modal-content creds-modal-content">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h3 style="color:#4a3b32; font-size:1.3rem; margin:0;">Demo Credentials:</h3>
+                <button onclick="closeCredsModal()" class="close-modal" style="position:static; width:30px; height:30px; line-height:30px;">×</button>
+            </div>
+            
+            <ul class="creds-list">
+                <li><strong>• Admin:</strong> Code: 1001 | a@gmail.com | 121212</li>
+                <li><strong>• Volunteer:</strong> v@gmail.com | 121212</li>
+                <li><strong>• User:</strong> u@gmail.com | 121212</li>
+            </ul>
+        </div>
+    </div>
+    <!-- Security Code Modal -->
+    <div id="security-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width:300px;">
+            <h3>🔐 Admin Access</h3>
+            <p>Enter Security Code</p>
+            <input type="password" id="sec-code" style="width:100%; padding:10px; margin:10px 0; text-align:center; letter-spacing:5px;" maxlength="5">
+            <button onclick="verifyCode()" class="btn btn-primary" style="width:100%">Verify</button>
+            <button onclick="closeSecurityModal()" class="btn btn-secondary" style="width:100%; margin-top:5px;">Cancel</button>
+        </div>
+    </div>
+
+    <script src="js/pet.js?v=supabase_v10"></script>
+    <script>
+        let currentRole = 'user';
+        let adminUnlocked = false;
+
+        function switchTab(role) {
+            if (role === 'admin' && !adminUnlocked) {
+                // Prompt Security Code first
+                document.getElementById('security-modal').classList.add('active');
+                document.getElementById('sec-code').value = '';
+                document.getElementById('sec-code').focus();
+                return;
+            }
+
+            // Normal Switching Logic or Post-Unlock Logic
+            updateUI(role);
+        }
+
+        function verifyCode() {
+            const code = document.getElementById('sec-code').value;
+            if (code === '1001') {
+                adminUnlocked = true;
+                closeSecurityModal();
+                updateUI('admin'); // Show Admin Interface
+                
+                // Change Tabs to Admin/Volunteer sub-selection
+                const tabs = document.querySelector('.login-tabs');
+                tabs.innerHTML = `
+                    <button class="tab-btn active" onclick="setSubRole('admin')" style="background:#dc3545; color:black;">Admin Login</button>
+                    <button class="tab-btn" onclick="setSubRole('volunteer')" style="background:#ffc107; color:black;">Volunteer Login</button>
+                `;
+            } else {
+                showWarmModal('Access Denied', 'Incorrect Security Code.', '⛔');
+            }
+        }
+
+        function closeSecurityModal() {
+            document.getElementById('security-modal').classList.remove('active');
+        }
+
+        function setSubRole(role) {
+            currentRole = role;
+            const title = document.getElementById('login-title');
+            const btns = document.querySelectorAll('.tab-btn');
+            
+            // Remove active from all
+            btns.forEach(b => b.classList.remove('active'));
+            
+            if (role === 'admin') {
+                btns[0].classList.add('active');
+                title.innerHTML = 'Admin Portal 🔒<br><small style="font-size:0.9rem; color:#666;">Administrator Access</small>';
+            } else {
+                btns[1].classList.add('active');
+                title.innerHTML = 'Volunteer Portal 🤝<br><small style="font-size:0.9rem; color:#666;">Team Member Access</small>';
+            }
+        }
+        
+        function resetLogin() {
+            adminUnlocked = false;
+            currentRole = 'user';
+            window.location.reload(); // Simple reset
+        }
+
+        function updateUI(role) {
+            currentRole = role;
+            const buttons = document.querySelectorAll('.tab-btn');
+            const title = document.getElementById('login-title');
+            const regLink = document.getElementById('register-link');
+            
+            document.getElementById('error-msg').innerText = ''; 
+            
+            if (role === 'admin' || role === 'volunteer') {
+                // Initial Admin State before sub-tabs (handled in verifyCode for dynamic switch)
+                 // If we are here via updateUI('admin') call in verifyCode, we handle basic setup
+                title.innerHTML = 'Admin Portal 🔒';
+                regLink.style.display = 'none';
+                
+                // Toggle main tabs visuals if existence (only before sub-rendering)
+                if(buttons.length === 2) {
+                     buttons[0].classList.remove('active');
+                     buttons[1].classList.add('active');
+                }
+            } else {
+                // User Mode
+                if(buttons.length === 2) {
+                    buttons[0].classList.add('active');
+                    buttons[1].classList.remove('active');
+                }
+                title.innerText = 'Welcome Back! 🐾';
+                regLink.style.display = 'block';
+            }
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('error-msg');
+            
+            const res = await apiCall('auth.php?action=login', 'POST', { email, password });
+            
+            if (res.success) {
+                // Routing logic
+                let target = 'user_dashboard.html';
+                
+                if (res.role === 'admin') target = 'admin_dashboard.html';
+                else if (res.role === 'volunteer') target = 'volunteer_dashboard.html';
+                
+                // Enforce Context Logic (User requested separation)
+                // Enforce Strict Role Separation
+                // 1. User Tab: Only 'user' allowed
+                if (currentRole === 'user' && res.role !== 'user') {
+                    errorDiv.innerHTML = `<strong>Access Denied</strong><br>Admins and Volunteers must use <a href="#" onclick="switchTab('admin')">Admin Access</a>.`;
+                    await apiCall('auth.php?action=logout'); // Invalidate session
+                    return;
+                }
+
+                // 2. Admin Tab: Only 'admin' allowed
+                if (currentRole === 'admin' && res.role !== 'admin') {
+                    errorDiv.innerHTML = `<strong>Access Denied</strong><br>This portal is for Administrators only.`;
+                    await apiCall('auth.php?action=logout');
+                    return;
+                }
+
+                // 3. Volunteer Tab: Only 'volunteer' allowed
+                if (currentRole === 'volunteer' && res.role !== 'volunteer') {
+                    errorDiv.innerHTML = `<strong>Access Denied</strong><br>This portal is for Volunteers only.`;
+                    await apiCall('auth.php?action=logout');
+                    return;
+                }
+                
+                // If passed checks, redirect
+                window.location.href = target;
+            } else {
+                errorDiv.innerText = res.error; 
+                if (res.code === 'USER_NOT_FOUND') {
+                    if (currentRole === 'user') {
+                        errorDiv.innerHTML = `<span style="display:block; margin-bottom:5px;">${res.error}</span> 
+                                              <a href="register.html" class="btn btn-primary" style="font-size:0.8rem; padding: 5px 15px;">Register Now</a>`;
+                    } else {
+                         // Volunteers and Admins cannot self-register
+                         errorDiv.innerHTML = `<span style="display:block; margin-bottom:5px;">${res.error}</span> 
+                                               <small>Please contact the Administrator.</small>`;
+                    }
+                }
+            }
+        });
+        
+        // Enter key for security modal
+        document.getElementById('sec-code').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') verifyCode();
+        });
+
+        // Demo Credentials Modal Logic
+        function showCredsModal() {
+            document.getElementById('creds-modal').classList.add('active');
+        }
+
+        function closeCredsModal() {
+            document.getElementById('creds-modal').classList.remove('active');
+        }
+    </script>
+</body>
+</html>

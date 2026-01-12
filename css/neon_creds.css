@@ -1,0 +1,76 @@
+/* Modern Ghost Button & Credentials Modal */
+.neon-btn-container {
+    text-align: center;
+    margin-top: 25px;
+}
+
+.demo-creds-btn {
+    background: transparent;
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
+    padding: 12px 25px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.demo-creds-btn:hover {
+    background: var(--primary-gradient);
+    color: #fff;
+    border-color: transparent;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(230, 126, 34, 0.3);
+}
+
+.creds-modal-content {
+    background: #fff;
+    border: none;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    text-align: left;
+    max-width: 450px;
+    padding: 30px;
+    border-radius: 20px;
+}
+
+.creds-list {
+    list-style: none;
+    padding: 0;
+    margin: 20px 0;
+}
+
+.creds-list li {
+    padding: 12px 15px;
+    border-bottom: 1px solid #f0f0f0;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.95rem;
+    color: #555;
+    background: #f9f9f9;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.creds-list li:last-child {
+    margin-bottom: 0;
+}
+
+.creds-list li strong {
+    font-weight: 700;
+    color: var(--primary-color);
+    min-width: 80px;
+}
+
+.copy-hint {
+    font-size: 0.75rem;
+    color: #aaa;
+    margin-left: 10px;
+    font-weight: normal;
+}

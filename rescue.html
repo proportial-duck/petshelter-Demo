@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Report Rescue - Paws Shelter</title>
+    <link rel="stylesheet" href="css/petshelder.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <nav>
+                <div class="logo">🐾 Paws Shelter</div>
+                <div class="nav-links" id="nav-links"></div>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <h2>Report a Rescue</h2>
+        <div class="auth-container" style="max-width: 800px;">
+            <form id="rescueForm">
+                <div class="form-group">
+                    <label>Your Name</label>
+                    <input type="text" id="reporter_name" required placeholder="Your Full Name">
+                </div>
+                <div class="form-group">
+                    <label>Your Address</label>
+                    <input type="text" id="reporter_address" required placeholder="Your Contact Address">
+                </div>
+                <div class="form-group">
+                    <label>Location Found</label>
+                    <input type="text" id="location" required>
+                </div>
+                <div class="form-group">
+                    <label>Pet Name (Unknown if stray)</label>
+                    <input type="text" id="name" placeholder="E.g. Unknown">
+                </div>
+                <div class="form-group">
+                    <label>Animal Type</label>
+                    <input type="text" id="type" required placeholder="E.g. Dog, Cat">
+                </div>
+                <div class="form-group">
+                    <label>Upload Photo</label>
+                    <input type="file" id="image" required accept="image/*">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="desc" rows="3" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Condition</label>
+                    <textarea id="cond" rows="3" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="background-color:var(--danger)">Report & Add to Shelter</button>
+            </form>
+        </div>
+    </div>
+    <script src="js/pet.js?v=supabase_v10"></script>
+    <script>
+        checkSession().then(res => { if (!res.loggedIn) window.location.href = 'login.html'; });
+
+        document.getElementById('rescueForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            formData.append('reporter_name', document.getElementById('reporter_name').value);
+            formData.append('reporter_address', document.getElementById('reporter_address').value);
+            formData.append('location', document.getElementById('location').value);
+            formData.append('name', document.getElementById('name').value);
+            formData.append('type', document.getElementById('type').value);
+            formData.append('image', document.getElementById('image').files[0]);
+            formData.append('description', document.getElementById('desc').value + "\nCondition: " + document.getElementById('cond').value);
+            
+            const res = await apiCall('misc.php?type=rescue&action=report', 'POST', formData);
+            
+            if (res.success) {
+                showWarmModal(
+                    'Warm Thank You! 💖', 
+                    'Your kind submission has been processed. Thank you for helping us save lives! 🐾', 
+                    '🐶',
+                    () => { window.location.href = 'index.html'; }
+                );
+            } else {
+                showWarmModal('Error', 'Something went wrong: ' + res.error, '❌');
+            }
+        });
+    </script>
+</body>
+</html>
